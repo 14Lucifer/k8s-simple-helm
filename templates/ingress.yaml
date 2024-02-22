@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress 
+metadata: 
+  name: {{ include "hwc_cce_demo.fullname" . }}-app-ingress
+  namespace: {{ .Values.namespace }}
+spec:
+  tls: 
+  - hosts: 
+    - {{ .Values.tls.hosts }}
+    secretName: {{ include "hwc_cce_demo.fullname" . }}-app-secret  
+  rules:
+    - host: {{ .Values.tls.hosts }}
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: {{ include "hwc_cce_demo.fullname" . }}-app-np-service
+                port:
+                  number: {{ .Values.nodeports.app.targetPort }}
+            property:
+              ingress.beta.kubernetes.io/url-match-mode: STARTS_WITH
+            pathType: ImplementationSpecific
+  ingressClassName: nginx

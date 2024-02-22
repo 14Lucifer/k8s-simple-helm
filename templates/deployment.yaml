@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hwc_cce_demo.fullname" . }}-app-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.labels.app.app }}
+    criticality: {{ .Values.labels.app.criticality }}
+spec:
+  replicas: {{ .Values.replicas.app }}
+  selector:
+    matchLabels:
+      app: {{ .Values.labels.app.app }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.labels.app.app }}
+        criticality: {{ .Values.labels.app.criticality }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: criticality
+                  operator: In
+                  values:
+                  - {{ .Values.labels.app.criticality }}
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+      {{- range .Values.containers.app }}
+      - name: {{ .name }}
+        image: {{ .image }}:{{ .imagetag }}
+        ports:
+        - containerPort: {{ .ports.httpcontainerPort }}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 3
+      {{- end }}

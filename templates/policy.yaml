@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cockroachdb-budget
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.labels.database.app }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.labels.database.app }}
+  maxUnavailable: 1

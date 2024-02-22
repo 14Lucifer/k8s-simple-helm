@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hwc_cce_demo.fullname" . }}-init-job
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.labels.database.app }}
+spec:
+  template:
+    spec:
+      containers:
+      {{- range .Values.containers.database }}
+      - name: {{ .name }}
+        image: {{ .image }}:{{ .imagetag }}
+      {{- end }}
+        imagePullPolicy: IfNotPresent
+        command:
+          - /cockroach/cockroach
+          - init
+          - --insecure
+          - --host={{ include "hwc_cce_demo.fullname" . }}-db-statefulset-0.{{ include "hwc_cce_demo.fullname" . }}-db-service
+      restartPolicy: OnFailure

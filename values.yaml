@@ -1,0 +1,46 @@
+# Default values for hwc_cce_demo.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace: demo-namespace
+
+labels:
+  app:
+    app: react-app
+    criticality: high
+  database:
+    app: cockroach-db
+    criticality: high
+
+replicas: 
+  app: 2
+  database: 2
+
+containers:
+  app:
+  - name: flask
+    image: 14lucifer/simple-flask
+    imagetag: v1.0
+    ports:
+      httpcontainerPort: 80
+  database:
+  - name: cockroachdb
+    image: cockroachdb/cockroach
+    imagetag: v23.1.13
+    ports:
+      grcpcontainerPort: 26257
+      httpcontainerPort: 8080
+
+nodeports:
+  app:
+    port: 80
+    targetPort: 80
+  database:
+    grpcPort: 26257
+    httpPort: 8080
+
+tls: 
+  hosts: www.hcloud-experience.com
+
+enterpriseProjectId: b55c......0b647f0b # To be replaced by actual enterprise ID of Huawei tenant.
+
+crdbStorage: 1Gi

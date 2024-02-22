@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "hwc_cce_demo.fullname" . }}-db-statefulset
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: {{ include "hwc_cce_demo.fullname" . }}-db-service
+  replicas: {{ .Values.replicas.database }}
+  selector:
+    matchLabels:
+      app: {{ .Values.labels.database.app }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.labels.database.app }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: criticality
+                  operator: In
+                  values:
+                  - {{ .Values.labels.database.criticality }}
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+      {{- range .Values.containers.database }}
+      - name: {{ .name }}
+        image: {{ .image }}:{{ .imagetag }}
+        imagePullPolicy: IfNotPresent
+        # TODO: Change these to appropriate values for the hardware that you're running. You can see
+        # the resources that can be allocated on each of your Kubernetes nodes by running:
+        #   kubectl describe nodes
+        # Note that requests and limits should have identical values.
+        resources:
+          requests:
+            cpu: "2"
+            memory: "8Gi"
+          limits:
+            cpu: "2"
+            memory: "8Gi" 
+        ports:
+        - containerPort: {{ .ports.grcpcontainerPort }}
+          name: grpc
+        - containerPort: {{ .ports.httpcontainerPort }}
+          name: http
+      {{- end }}
+        readinessProbe:
+          httpGet:
+            path: "/health?ready=1"
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 2
+        volumeMounts:
+        - name: datadir
+          mountPath: /cockroach/cockroach-data
+        env:
+        - name: COCKROACH_CHANNEL
+          value: kubernetes-insecure
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+              divisor: "1"
+        - name: MEMORY_LIMIT_MIB
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.memory
+              divisor: "1Mi"
+        command:
+          - "/bin/bash"
+          - "-ecx"
+          - exec
+            /cockroach/cockroach
+            start
+            --logtostderr
+            --insecure
+            --advertise-host $(hostname -f)
+            --http-addr 0.0.0.0
+            --join {{ include "hwc_cce_demo.fullname" . }}-db-statefulset-0.{{ include "hwc_cce_demo.fullname" . }}-db-service,{{ include "hwc_cce_demo.fullname" . }}-db-statefulset-1.{{ include "hwc_cce_demo.fullname" . }}-db-service
+            --cache $(expr $MEMORY_LIMIT_MIB / 4)MiB
+            --max-sql-memory $(expr $MEMORY_LIMIT_MIB / 4)MiB
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: datadir
+        persistentVolumeClaim:
+          claimName: datadir
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+      namespace: default
+      annotations:
+        everest.io/obs-volume-type: STANDARD    # Object storage type.
+        csi.storage.k8s.io/fstype: obsfs        # Instance type.
+        csi.storage.k8s.io/node-publish-secret-name: {{ include "hwc_cce_demo.fullname" . }}-db-obs-secret   # Custom secret name.
+        csi.storage.k8s.io/node-publish-secret-namespace: {{ .Values.namespace }}   # Namespace of the custom secret.
+        everest.io/enterprise-project-id: {{ .Values.enterpriseProjectId }}
+    spec:
+      accessModes:
+        - "ReadWriteMany"
+      resources:
+        requests:
+          storage: {{ .Values.crdbStorage }}
+      storageClassName: csi-obs
