@@ -41,6 +41,6 @@ nodeports:
 tls: 
   hosts: www.hcloud-experience.com
 
-enterpriseProjectId: b55c......0b647f0b # To be replaced by actual enterprise ID of Huawei tenant.
+#enterpriseProjectId: b55c......0b647f0b # To be replaced by actual enterprise ID of Huawei tenant.
 
 crdbStorage: 1Gi
